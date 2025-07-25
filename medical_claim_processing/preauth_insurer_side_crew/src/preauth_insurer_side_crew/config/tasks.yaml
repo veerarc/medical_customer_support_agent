@@ -1,0 +1,69 @@
+task1:
+  description: >
+    Ingest and standardize a preauthorization request in JSON format.
+    Extract fields: patient_name, age, diagnosis, ICD_code, CPT_code, estimated_cost, insurer, policy_number.
+    Use the JSONValidatorTool to ensure all required fields are present and consistent.
+    Flag any missing, malformed, or contradictory entries.
+    Assign a UUID and timestamp for audit tracking.
+  expected_output: >
+    {
+      "case_id": "<UUID>",
+      "ingestion_timestamp": "<UTC timestamp>",
+      "source_format": "JSON",
+      "completeness_validated_fields": { ... },
+      "validation_status": "success | error",
+      "validation_issues": [ ... ]
+    }
+  agent: intake_agent
+
+task2:
+  description: >
+    Use the validated preauth JSON to verify insurance coverage.
+    Match policy number and member ID, check procedure eligibility,
+    apply policy exclusions and copay clauses, and flag inactive policies.
+  expected_output: >
+    {
+      "coverage_status": "eligible | ineligible",
+      "reasons": [ ... ],
+      "policy_flags": [ "inactive policy", "copay exceeded", ... ]
+    }
+  agent: policy_agent
+
+task3:
+  description: >
+    Evaluate the clinical justification for the requested procedure.
+    Cross-check diagnosis and CPT codes with MCG/InterQual guidelines.
+    Ensure sufficient documentation exists to support the claim.
+  expected_output: >
+    {
+      "medical_necessity": "met | not_met",
+      "clinical_justification": "...",
+      "documentation_check": "complete | missing_info"
+    }
+  agent: clinical_agent
+
+task4:
+  description: >
+    Estimate financial impact to the insurer.
+    Use CPT codes and submitted cost estimates to calculate risk.
+    Flag high-cost or experimental procedures and recommend escalation.
+  expected_output: >
+    {
+      "estimated_cost": "<value>",
+      "risk_flags": [ "high-cost", "experimental" ],
+      "recommend_escalation": true | false
+    }
+  agent: cost_agent
+
+task5:
+  description: >
+    Aggregate insights from intake, coverage validation, clinical evaluation,
+    and cost assessment. Return a final preauth decision:
+    Approve, Deny, or Request More Info.
+  expected_output: >
+    {
+      "final_decision": "approve | deny | request_info",
+      "justification_summary": "...",
+      "response_to_provider": { ... }
+    }
+  agent: decision_agent
