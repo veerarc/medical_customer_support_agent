@@ -1,11 +1,9 @@
-from crewai import Agent, Crew, Process, Task
+from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List
 from .tools.custom_tool import (
-    FetchPatientHistoryTool,
-    VerifyPolicyTool,
-    CalculateCostsTool
+    JSONValidatorTool
 )
 
 @CrewBase
@@ -16,50 +14,66 @@ class PreauthInsurerSideCrew():
     tasks: List[Task]
 
     def __init__(self):
-        self.patient_history_tool = FetchPatientHistoryTool()
-        self.policy_tool = VerifyPolicyTool()
-        self.cost_tool = CalculateCostsTool()
-
+        self.llm=LLM(model="ollama/deepseek-r1:8b", base_url="http://localhost:11434")
+        # self.patient_history_tool = FetchPatientHistoryTool()
+        # self.policy_tool = VerifyPolicyTool()
+        # self.cost_tool = CalculateCostsTool()
 
     @agent
-    def intake_agent(self):
-        return YamlAgent(path=os.path.join(CONFIG_PATH, 'agents.yaml'), agent_name='intake_agent')
+    def intake_agent(self) -> Agent:
+        return Agent(
+            config=self.agents_config['intake_agent'], # type: ignore[index]
+            llm=self.llm,
+            tools=[JSONValidatorTool()]
+        ) 
 
     @agent
     def policy_agent(self):
-        return YamlAgent(path=os.path.join(CONFIG_PATH, 'agents.yaml'), agent_name='policy_agent')
+        return Agent(
+            config=self.agents_config['policy_agent'],  # type: ignore[index]
+            llm=self.llm
+        )
 
     @agent
     def clinical_agent(self):
-        return YamlAgent(path=os.path.join(CONFIG_PATH, 'agents.yaml'), agent_name='clinical_agent')
+        return Agent(
+            config=self.agents_config['clinical_agent'],  # type: ignore[index]
+            llm=self.llm    
+        )
 
     @agent
     def cost_agent(self):
-        return YamlAgent(path=os.path.join(CONFIG_PATH, 'agents.yaml'), agent_name='cost_agent')
+        return Agent(
+            config=self.agents_config['cost_agent'],  # type: ignore[index]
+            llm=self.llm
+        )
 
     @agent
     def decision_agent(self):
-        return YamlAgent(path=os.path.join(CONFIG_PATH, 'agents.yaml'), agent_name='decision_agent')
+        return Agent(
+            config=self.agents_config['decision_agent'],  # type: ignore[index]
+            llm=self.llm
+        )
 
     @task
-    def task1(self):
-        return YamlTask(path=os.path.join(CONFIG_PATH, 'tasks.yaml'), task_name='task1')
+    def intake_validation_task(self):
+        return  Task(config=self.tasks_config['intake_validation_task']) # type: ignore[index]
 
     @task
-    def task2(self):
-        return YamlTask(path=os.path.join(CONFIG_PATH, 'tasks.yaml'), task_name='task2')
+    def coverage_verification_task(self):
+        return  Task(config=self.tasks_config['coverage_verification_task']) # type: ignore[index]
 
     @task
-    def task3(self):
-        return YamlTask(path=os.path.join(CONFIG_PATH, 'tasks.yaml'), task_name='task3')
+    def clinical_review_task(self):
+        return  Task(config=self.tasks_config['clinical_review_task']) # type: ignore[index]
 
     @task
-    def task4(self):
-        return YamlTask(path=os.path.join(CONFIG_PATH, 'tasks.yaml'), task_name='task4')
+    def financial_analysis_task(self):
+        return  Task(config=self.tasks_config['financial_analysis_task']) # type: ignore[index]
 
     @task
-    def task5(self):
-        return YamlTask(path=os.path.join(CONFIG_PATH, 'tasks.yaml'), task_name='task5')
+    def final_determination_task(self):
+        return Task( config=self.tasks_config['final_determination_task']) # type: ignore[index]
 
     @crew
     def crew(self) -> Crew:

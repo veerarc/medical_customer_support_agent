@@ -1,0 +1,68 @@
+.venv/lib64
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode settings
+.vscode/
+
+# PyCharm settings
+.idea/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Logs and output
+*.log
+*.out
+
+# CrewAI tool outputs
+crew_outputs/
+crew_logs/
+
+# Token or credential files
+.env
+*.secret
+*.key
+
+# Test cache
+.cache/
+pytest_cache/
+
+# Crews and task-specific metadata
+*.crewstate
+*.tmp
+*.bak
+
+# Ignore compiled tools
+tools/__pycache__/
+
+# Data and artifacts
+data/
+*.csv
+*.json
+
+# Ignore compiled models or HuggingFace cache
+*.pt
+*.h5
+*.ckpt
+*.pkl
+*.joblib
+huggingface/
+
+# Ignore intermediate artifacts or scratch files
+scratch/
+tmp/
+blogs/
+posts/

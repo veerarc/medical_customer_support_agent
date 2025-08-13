@@ -1,8 +1,16 @@
 #!/usr/bin/env python
+import os
 import sys
 import warnings
-
+from typing import Any, Dict
 from datetime import datetime
+from pathlib import Path
+from crewai import CrewOutput  
+
+# Add the src directory to Python path
+src_dir = str(Path(__file__).resolve().parent.parent)
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 from preauth_insurer_side_crew.crew import PreauthInsurerSideCrew
 
@@ -13,7 +21,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 # Replace with inputs you want to test with, it will automatically
 # interpolate any tasks and agents information
 
-def run(procedure_name: str, policy_id: str, patient_id: str):
+def run()  -> Dict[str, Any]:
     """
     Run the pre-authorization crew for a specific request.
     
@@ -21,8 +29,9 @@ def run(procedure_name: str, policy_id: str, patient_id: str):
         procedure_name: Name of the medical procedure requiring pre-authorization
         policy_id: Insurance policy ID
         patient_id: Patient's unique identifier
+        
     """
-    inputs = {
+    inputs: Dict[str, Any] = {
         "patient_name": "Ravi Kumar",
         "age": 45,
         "diagnosis": "Severe lumbar disc herniation with radiculopathy",
@@ -32,26 +41,24 @@ def run(procedure_name: str, policy_id: str, patient_id: str):
         "insurer": "MediCover Health",
         "policy_number": "MC202501789"
     }
-
-
-    
+   
     try:
         crew = PreauthInsurerSideCrew().crew()
-        results = crew.kickoff(inputs=inputs)
-        
+        results: CrewOutput = crew.kickoff(inputs=inputs)
+
         # Process and combine results from all tasks
-        medical_review = results.get('medical_review_task')
-        policy_check = results.get('policy_check_task')
-        cost_estimate = results.get('cost_estimation_task')
-        
+        # medical_review: Dict[str, Any] = results.get('medical_review_task')
+        # policy_check: Dict[str, Any] = results.get('policy_check_task')
+        # cost_estimate: Dict[str, Any] = results.get('cost_estimation_task')
+
         # Return consolidated pre-authorization decision
         return {
             'request_id': f"PA-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            'medical_review': medical_review,
-            'policy_check': policy_check,
-            'cost_estimate': cost_estimate,
-            'final_decision': 'APPROVED' if all([medical_review.get('approved'), 
-                                              policy_check.get('approved')]) else 'DENIED'
+            # 'medical_review': medical_review,
+            # 'policy_check': policy_check,
+            # 'cost_estimate': cost_estimate,
+            # 'final_decision': 'APPROVED' if all([medical_review.get('approved'), 
+            #                                   policy_check.get('approved')]) else 'DENIED'
         }
     except Exception as e:
         raise Exception(f"An error occurred while processing the pre-authorization request: {e}")
@@ -106,3 +113,7 @@ def test():
             )
     except Exception as e:
         raise Exception(f"An error occurred while testing the crew: {e}")
+
+
+if __name__ == "__main__":
+    run()

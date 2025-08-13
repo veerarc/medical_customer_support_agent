@@ -1,69 +1,346 @@
-task1:
+intake_validation_task:
   description: >
-    Ingest and standardize a preauthorization request in JSON format.
-    Extract fields: patient_name, age, diagnosis, ICD_code, CPT_code, estimated_cost, insurer, policy_number.
-    Use the JSONValidatorTool to ensure all required fields are present and consistent.
-    Flag any missing, malformed, or contradictory entries.
-    Assign a UUID and timestamp for audit tracking.
-  expected_output: >
+    Perform comprehensive intake processing of preauthorization request by:
+    1. Ingesting and parsing request data from JSON format.
+    2. Extracting and validating required fields:
+      - Patient demographics (name, DOB, gender, contact info)
+      - Clinical information (diagnosis codes, symptoms, duration)
+      - Procedure details (CPT/HCPCS codes, requested date, facility)
+      - Insurance information (policy number, group ID, plan type)
+      - Provider information (NPI, specialty, contact details)
+    3. Standardizing all data fields to internal format
+    4. Performing data quality checks:
+      - Field completeness and format validation
+    5. Assigning unique tracking identifiers
+    6. Establishing audit trail with timestamps
+    7. Prioritizing based on medical urgency indicators
+    8. Flagging requests needing expedited review
+  expected_output: >  
     {
-      "case_id": "<UUID>",
-      "ingestion_timestamp": "<UTC timestamp>",
-      "source_format": "JSON",
-      "completeness_validated_fields": { ... },
-      "validation_status": "success | error",
-      "validation_issues": [ ... ]
+      "request_metadata": {
+        "case_id": "<UUID>",
+        "received_timestamp": "<UTC timestamp>",
+        "source_format": "JSON|FHIR|HL7|PDF",
+        "priority_level": "routine|urgent|emergent",
+        "processing_status": "complete|partial|error"
+      },
+      "validated_data": {
+        "patient": {
+          "demographics": { ... },
+          "insurance": { ... }
+        },
+        "clinical": {
+          "diagnosis_codes": [ ... ],
+          "procedure_codes": [ ... ],
+          "clinical_history": { ... }
+        },
+        "provider": {
+          "details": { ... },
+          "credentials": { ... }
+        }
+      },
+      "validation_results": {
+        "completeness_score": "<0-100>",
+        "data_quality_issues": [
+          {
+            "field": "<field_name>",
+            "issue_type": "missing|invalid|inconsistent",
+            "severity": "high|medium|low",
+            "description": "<issue details>"
+          }
+        ],
+        "missing_required_docs": [ ... ],
+        "expedited_review_flags": [ ... ]
+      },
+      "audit_trail": {
+        "validation_steps": [ ... ],
+        "timestamps": { ... }
+      }
     }
   agent: intake_agent
 
-task2:
+coverage_verification_task:
   description: >
-    Use the validated preauth JSON to verify insurance coverage.
-    Match policy number and member ID, check procedure eligibility,
-    apply policy exclusions and copay clauses, and flag inactive policies.
+    Conduct thorough insurance coverage verification by:
+    1. Authenticating policy information:
+      - Verify policy status (active/inactive)
+      - Confirm effective dates and renewal status
+      - Validate member eligibility
+      - Check dependent coverage if applicable
+    2. Analyzing benefit coverage:
+      - Determine in-network vs out-of-network benefits
+      - Check specific procedure coverage
+      - Review prior authorization requirements
+      - Verify specialist referral requirements
+    3. Evaluating policy limits:
+      - Check annual/lifetime maximums
+      - Verify remaining benefit amounts
+      - Calculate accumulated deductibles/co-insurance
+      - Review stop-loss provisions
+    4. Applying policy rules:
+      - Check procedure-specific exclusions
+      - Verify waiting period requirements
+      - Apply pre-existing condition clauses
+      - Check for required prior treatments
+    5. Identifying special provisions:
+      - Review policy riders
+      - Check for supplemental coverage
+      - Verify coordination of benefits
+      - Apply employer-specific arrangements
   expected_output: >
     {
-      "coverage_status": "eligible | ineligible",
-      "reasons": [ ... ],
-      "policy_flags": [ "inactive policy", "copay exceeded", ... ]
+      "coverage_verification": {
+        "policy_status": {
+          "active": true|false,
+          "effective_period": { "start": "<date>", "end": "<date>" },
+          "coverage_level": "individual|family",
+          "plan_type": "HMO|PPO|EPO|etc"
+        },
+        "benefit_analysis": {
+          "procedure_coverage": "covered|not_covered|partial",
+          "network_status": "in|out|not_applicable",
+          "prior_auth_required": true|false,
+          "referral_required": true|false
+        },
+        "financial_status": {
+          "deductible": {
+            "individual": { "met": "<amount>", "remaining": "<amount>" },
+            "family": { "met": "<amount>", "remaining": "<amount>" }
+          },
+          "out_of_pocket": { ... },
+          "benefit_maximum": { ... }
+        },
+        "special_provisions": {
+          "exclusions": [ ... ],
+          "waiting_periods": [ ... ],
+          "pre_existing_conditions": [ ... ],
+          "riders": [ ... ]
+        }
+      },
+      "coverage_determination": {
+        "status": "eligible|ineligible|conditional",
+        "conditions": [ ... ],
+        "required_actions": [ ... ],
+        "member_responsibility": { ... }
+      }
     }
   agent: policy_agent
+  context: 
+    - intake_validation_task
 
-task3:
+clinical_review_task:
   description: >
-    Evaluate the clinical justification for the requested procedure.
-    Cross-check diagnosis and CPT codes with MCG/InterQual guidelines.
-    Ensure sufficient documentation exists to support the claim.
+    Perform comprehensive clinical necessity evaluation by:
+    1. Reviewing clinical documentation:
+      - Analyze presenting symptoms and duration
+      - Review diagnostic test results
+      - Evaluate treatment history
+      - Check for contraindications
+    2. Applying clinical guidelines:
+      - Match with MCG/InterQual criteria
+      - Check evidence-based protocols
+      - Verify appropriate care settings
+      - Review alternative treatment options
+    3. Evaluating medical necessity:
+      - Confirm diagnosis-procedure alignment
+      - Check for conservative treatment attempts
+      - Verify timing appropriateness
+      - Assess urgency level
+    4. Reviewing provider qualifications:
+      - Verify specialist credentials
+      - Check facility accreditation
+      - Review outcomes data
+      - Confirm procedure volume requirements
+    5. Analyzing patient-specific factors:
+      - Consider comorbidities
+      - Review age/health status impact
+      - Check for contraindications
+      - Evaluate risk factors
   expected_output: >
     {
-      "medical_necessity": "met | not_met",
-      "clinical_justification": "...",
-      "documentation_check": "complete | missing_info"
+      "clinical_assessment": {
+        "documentation_review": {
+          "completeness": "complete|partial|insufficient",
+          "missing_elements": [ ... ],
+          "quality_of_evidence": "high|moderate|low"
+        },
+        "medical_necessity": {
+          "criteria_met": true|false,
+          "supporting_evidence": [ ... ],
+          "contrary_indicators": [ ... ],
+          "guideline_compliance": {
+            "standard": "MCG|InterQual|Custom",
+            "criteria_matched": [ ... ],
+            "criteria_failed": [ ... ]
+          }
+        },
+        "provider_assessment": {
+          "qualifications_met": true|false,
+          "facility_appropriate": true|false,
+          "volume_requirements_met": true|false
+        },
+        "patient_factors": {
+          "risk_level": "low|moderate|high",
+          "contraindications": [ ... ],
+          "comorbidity_impact": { ... }
+        }
+      },
+      "clinical_determination": {
+        "decision": "approved|denied|modified",
+        "rationale": "<detailed explanation>",
+        "alternative_recommendations": [ ... ],
+        "required_documentation": [ ... ]
+      }
     }
   agent: clinical_agent
+  context: 
+    - intake_validation_task
+    - coverage_verification_task
 
-task4:
+financial_analysis_task:
   description: >
-    Estimate financial impact to the insurer.
-    Use CPT codes and submitted cost estimates to calculate risk.
-    Flag high-cost or experimental procedures and recommend escalation.
+    Conduct detailed financial risk assessment by:
+    1. Analyzing procedure costs:
+      - Review CPT/HCPCS code pricing
+      - Calculate facility fees
+      - Estimate professional fees
+      - Include ancillary services
+    2. Evaluating financial risk:
+      - Compare to historical costs
+      - Analyze provider pricing patterns
+      - Check for outlier charges
+      - Assess complication risks
+    3. Calculating coverage impact:
+      - Determine insurance liability
+      - Calculate member responsibility
+      - Apply network discounts
+      - Factor in policy limits
+    4. Projecting related costs:
+      - Estimate follow-up care
+      - Consider rehabilitation needs
+      - Factor in medication costs
+      - Include equipment needs
+    5. Identifying cost containment:
+      - Review alternative settings
+      - Check bundled payment options
+      - Evaluate negotiated rates
+      - Consider centers of excellence
   expected_output: >
     {
-      "estimated_cost": "<value>",
-      "risk_flags": [ "high-cost", "experimental" ],
-      "recommend_escalation": true | false
+      "cost_analysis": {
+        "procedure_costs": {
+          "base_procedure": "<amount>",
+          "facility_fees": "<amount>",
+          "professional_fees": "<amount>",
+          "ancillary_services": "<amount>",
+          "total_estimated": "<amount>"
+        },
+        "risk_assessment": {
+          "cost_percentile": "<percentile>",
+          "historical_comparison": { ... },
+          "complication_risk_factor": "<factor>",
+          "financial_risk_level": "low|moderate|high"
+        },
+        "coverage_calculation": {
+          "insurance_liability": "<amount>",
+          "member_responsibility": {
+            "deductible": "<amount>",
+            "copay": "<amount>",
+            "coinsurance": "<amount>"
+          },
+          "network_savings": "<amount>"
+        },
+        "projected_costs": {
+          "follow_up_care": "<amount>",
+          "rehabilitation": "<amount>",
+          "medications": "<amount>",
+          "total_episode": "<amount>"
+        }
+      },
+      "cost_containment": {
+        "recommendations": [ ... ],
+        "potential_savings": "<amount>",
+        "alternative_options": [ ... ]
+      },
+      "financial_determination": {
+        "approval_level": "standard|high-risk|escalated",
+        "cost_flags": [ ... ],
+        "required_actions": [ ... ]
+      }
     }
   agent: cost_agent
+  context: 
+    - intake_validation_task
+    - coverage_verification_task
+    - clinical_review_task
 
-task5:
+final_determination_task:
   description: >
-    Aggregate insights from intake, coverage validation, clinical evaluation,
-    and cost assessment. Return a final preauth decision:
-    Approve, Deny, or Request More Info.
+    Synthesize comprehensive preauthorization decision by:
+    1. Aggregating all reviews:
+      - Compile intake validation results
+      - Review coverage verification
+      - Assess clinical necessity findings
+      - Evaluate financial analysis
+    2. Weighing multiple factors:
+      - Policy compliance requirements
+      - Medical necessity criteria
+      - Financial risk considerations
+      - Patient safety factors
+    3. Applying decision rules:
+      - Follow regulatory requirements
+      - Apply clinical guidelines
+      - Consider appeals history
+      - Factor urgency level
+    4. Generating response:
+      - Formulate clear rationale
+      - Document decision basis
+      - Specify conditions/limitations
+      - Include appeal rights
+    5. Ensuring compliance:
+      - Check turnaround times
+      - Verify notification requirements
+      - Document decision process
+      - Maintain audit trail
   expected_output: >
     {
-      "final_decision": "approve | deny | request_info",
-      "justification_summary": "...",
-      "response_to_provider": { ... }
+      "decision_synthesis": {
+        "review_summary": {
+          "intake_validation": { ... },
+          "coverage_verification": { ... },
+          "clinical_review": { ... },
+          "financial_analysis": { ... }
+        },
+        "decision_factors": {
+          "policy_requirements": [ ... ],
+          "clinical_indicators": [ ... ],
+          "financial_considerations": [ ... ],
+          "regulatory_requirements": [ ... ]
+        }
+      },
+      "final_determination": {
+        "decision": "approved|denied|modified|pending",
+        "auth_number": "<if approved>",
+        "effective_period": { "start": "<date>", "end": "<date>" },
+        "conditions": [ ... ],
+        "limitations": [ ... ]
+      },
+      "response_package": {
+        "provider_notification": { ... },
+        "member_notification": { ... },
+        "appeal_rights": { ... },
+        "required_actions": [ ... ]
+      },
+      "compliance_documentation": {
+        "decision_timestamp": "<UTC timestamp>",
+        "turnaround_time": "<duration>",
+        "regulatory_checklist": [ ... ],
+        "audit_trail": [ ... ]
+      }
     }
   agent: decision_agent
+  context: 
+    - intake_validation_task
+    - coverage_verification_task
+    - clinical_review_task
+    - financial_analysis_task
