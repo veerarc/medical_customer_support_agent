@@ -1,0 +1,12 @@
+ollama --version
+
+# list all the models downloaded in Ollama
+ollama list 
+
+# download the model
+ollama pull llama3.2:1b
+
+# run the model locally
+ollama run llama3.2:1b
+
+>>> The Ollama API is now available at 127.0.0.1:11434.

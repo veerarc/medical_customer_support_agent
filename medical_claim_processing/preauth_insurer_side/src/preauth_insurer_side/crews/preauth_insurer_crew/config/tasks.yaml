@@ -1,0 +1,115 @@
+# tasks.yaml
+
+ingest_request_task:
+  description: >
+    Ingest a preauthorization request provided in input preauth request: {preauth_request}. 
+    Perform the following in order:
+    1. Extract and standardize the following fields from the input dictionary:
+        - patient_name (string)
+        - age (integer)
+        - diagnosis_test_results (string or list of strings)
+        - ICD_code (string)
+        - CPT_code (string)
+        - estimated_cost (float or string)
+        - insurer (string)
+        - policy_number (string)
+    2. Use the `JsonValidatorTool` to validate:
+        - All required fields are present
+        - Fields are non-empty and match expected types
+        - Report any missing or malformed entries
+
+    3. Generate a case ID using the `CreateUUIDTool` and record ingestion metadata:
+        - Current UTC timestamp
+        - Source format (assume it is passed via context or as an argument)
+
+    4. Construct and return a single structured JSON object in the format shown below.
+    Keep output minimal, flat, and machine-readable.
+
+    Avoid any reasoning or explanation — only perform extraction, validation, and formatting.
+  expected_output: Structured JSON with metadata, validation status, and issues (if any)
+  agent: intake_agent
+
+validate_request_task:
+  description: >
+    Using the structured JSON from the intake step, verify the patient’s insurance policy eligibility
+    for the requested procedure. Perform the following checks:
+
+    - Match member ID and policy number (if provided) against known formats or validation logic.
+    - Determine whether the policy is currently active and within its coverage period.
+    - Check if the requested CPT-coded procedure is included in the plan's covered services.
+    - Apply exclusions, policy caps, and co-payment or deductible clauses where applicable.
+    - Identify any red flags, such as inactive/suspended policies or missing documentation
+      required for authorization (e.g., referral letters, prior conditions).
+
+    Return a clear validation summary with eligibility decision, reasons, and any recommended next steps.
+        
+  expected_output: >
+    Eligibility validation summary with decision (Approved, Denied, or Request More Info),
+    reasons for the decision, and any policy-specific notes.
+  agent: policy_agent
+  context: 
+    - ingest_request_task
+
+evaluate_clinical_necessity_task:
+  description: >
+    Using the diagnosis (ICD code), procedure (CPT code), and clinical documentation provided,
+    assess whether the requested procedure is medically necessary based on industry-standard
+    utilization guidelines (e.g., MCG, InterQual).
+
+    Steps:
+    - Match the diagnosis and requested procedure against relevant evidence-based criteria from
+      MCG or InterQual to determine alignment.
+    - Evaluate whether the supporting documentation (e.g., progress notes, labs, imaging, treatment history)
+      adequately justifies the need for the procedure.
+    - Determine whether conservative alternatives were attempted or if the procedure is first-line.
+    - Identify red flags such as elective use, overuse, or deviation from standard care pathways.
+
+    Provide a structured clinical necessity evaluation with your final recommendation.
+  expected_output: Medical necessity outcome with reasoning.
+  agent: clinical_agent
+  context:
+    - validate_request_task
+
+estimate_risk_task:
+  description: |
+    Conduct a financial risk assessment based on the requested procedure's CPT code and
+    applicable insurance plan data.
+
+    Steps:
+    - Estimate the cost of the procedure using cost reference tools and fee schedules associated
+      with the CPT code.
+    - Determine if the procedure is categorized as high-cost, investigational, or experimental.
+    - Evaluate whether the estimated cost exceeds the plan-specific coverage threshold or utilization cap.
+    - Recommend escalation to a human financial reviewer if the risk exceeds acceptable policy limits.
+
+    Ensure that your output is structured and provides a clear rationale behind cost risk classifications
+    and escalation needs.
+  expected_output: Cost estimate, risk flags, and escalation recommendation.
+  agent: cost_agent
+  context: 
+    - evaluate_clinical_necessity_task
+
+aggregate_outputs_task:
+  description: |
+    Synthesize structured outputs from the four upstream agents:
+    - Intake Agent
+    - Policy Validation Agent
+    - Medical Necessity Evaluator
+    - Cost Impact Assessor
+
+    Assess alignment across eligibility, clinical appropriateness, documentation completeness, and
+    financial viability. Based on this aggregation, make a final determination on the preauthorization
+    request using the following decision classes:
+    - "Approved"
+    - "Denied"
+    - "Request Additional Information"
+
+    The decision should be supported with a clear justification referencing findings from previous steps.
+    If requesting more information, specify the exact missing or incomplete elements. Your response should
+    be structured in a format that can be sent directly to the provider for clarity, compliance, and audit.
+  expected_output: Final decision JSON and provider-facing explanation.
+  agent: decision_agent
+  context: 
+    - ingest_request_task
+    - estimate_risk_task
+  # output_file: output/report.md

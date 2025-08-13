@@ -1,0 +1,4 @@
+python3 -m venv .venv
+source .venv/bin/activate
+pip install crewai langchain-community langchain-openai streamlit pydantic ollama
+pip freeze requirements.txt

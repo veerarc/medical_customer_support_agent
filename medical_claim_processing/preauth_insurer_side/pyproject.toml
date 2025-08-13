@@ -1,0 +1,21 @@
+[project]
+name = "preauth_insurer_side"
+version = "0.1.0"
+description = "preauth_insurer_side using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[tools]>=0.141.0,<1.0.0",
+]
+
+[project.scripts]
+kickoff = "preauth_insurer_side.main:kickoff"
+run_crew = "preauth_insurer_side.main:kickoff"
+plot = "preauth_insurer_side.main:plot"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "flow"
