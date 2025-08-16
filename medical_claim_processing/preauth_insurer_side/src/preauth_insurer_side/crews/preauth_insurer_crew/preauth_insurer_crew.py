@@ -8,7 +8,7 @@ from tools.custom_tool import JSONValidatorTool
 # you can use the @before_kickoff and @after_kickoff decorators
 # https://docs.crewai.com/concepts/crews#example-crew-class-with-decorators
 # Shared LLM for all agents
-llm = LLM(model="ollama/deepseek-r1:8b", base_url="http://localhost:11434")
+llm = LLM(model="ollama/deepseek-r1:1.5b", base_url="http://localhost:11434")
 
 @CrewBase
 class PreauthInsurerCrew():
