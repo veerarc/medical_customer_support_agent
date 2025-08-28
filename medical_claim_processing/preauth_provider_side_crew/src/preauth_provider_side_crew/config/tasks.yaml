@@ -1,17 +1,239 @@
-research_task:
+process_patient_registration_task:
   description: >
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is {current_year}.
-  expected_output: >
-    A list with 10 bullet points of the most relevant information about {topic}
-  agent: researcher
+    Process patient registration using:
+    patient information: {patient_info}
+    insurance information: {insurance_card}
 
-reporting_task:
-  description: >
-    Review the context you got and expand each topic into a full section for a report.
-    Make sure the report is detailed and contains any and all relevant information.
+    YOU MUST:
+    1. Return ONLY a valid JSON object with no surrounding text, comments, or explanations
+    2. Include all required fields in the exact structure:
+       {
+         "first_name": "string",
+         "last_name": "string",
+         "dob": "YYYY-MM-DD",
+         "gender": "string",
+         "contact": {
+           "phone": "string",
+           "email": "string"
+         },
+         "address": "string",
+         "ehr_id": "string",
+         "physician": {
+           "name": "string",
+           "department": "string",
+           "npi": "string"
+         },
+         "insurance": {
+           "insurer_name": "string",
+           "policy_number": "string",
+           "group_number": "string",
+           "valid_from": "YYYY-MM-DD",
+           "valid_to": "YYYY-MM-DD",
+           "network_affiliation": "string"
+         }
+       }
+    3. Do not include any <think> tags, markdown formatting, or explanatory text
+    4. Ensure all nested objects (contact, physician, insurance) have all their required fields
+    5. Return the JSON object directly, with no surrounding text or code blocks
   expected_output: >
-    A fully fledged report with the main topics, each with a full section of information.
-    Formatted as markdown without '```'
-  agent: reporting_analyst
+    A pure JSON object matching the PatientInfoModel schema with nested ContactModel, PhysicianModel, and InsuranceModel objects
+  agent: patient_intake_agent
+
+extract_clinical_terms_task:
+  description: >
+    TASK: Extract clinical information from: {clinical_notes}
+
+    RESPONSE FORMAT:
+    You MUST respond with ONLY a JSON object. No other text, no markdown formatting, no explanations.
+    Do not include any text like '<think>', 'Final Answer:', 'Here's the JSON:', or '```json'.
+    Do not wrap the JSON in code blocks.
+    The response should start with '{' and end with '}'.
+
+    REQUIRED JSON STRUCTURE:
+    {
+      "symptoms": ["string1", "string2"],  // Array of symptoms found in notes
+      "diagnosis": "string",               // Main diagnosis
+      "procedure": "string",               // Recommended procedure
+      "risk_factors": ["string1"]         // Array of risk factors
+    }
+
+    EXAMPLE VALID RESPONSE:
+    {
+      "symptoms": ["Severe pain in left knee", "Joint stiffness"],
+      "diagnosis": "Left Knee Osteoarthritis",
+      "procedure": "Arthroscopic Knee Surgery",
+      "risk_factors": ["Hypertension", "Obesity"]
+    }
+
+    CRITICAL RULES:
+    1. Start your response with '{' - no other characters before it
+    2. End your response with '}' - no other characters after it
+    3. Use proper JSON syntax with double quotes
+    4. No comments, explanations, or thinking process in the output
+    5. No markdown, no code blocks, no extra formatting
+  expected_output: >
+    Pure JSON object only, nothing else. Must start with '{' and end with '}'
+  agent: gather_clinical_notes_agent
+
+medical_coding_task:
+  description: >
+    Map diagnoses and procedures to standard codes using the coding reference: {coding_reference}
+
+    YOU MUST:
+    1. Return ONLY a valid JSON object with no surrounding text, comments, or explanations
+    2. Include all required fields in the exact structure:
+       {
+         "icd_codes": {
+           "M17.12": "Unilateral primary osteoarthritis, left knee",
+           "code2": "description2"
+         },
+         "cpt_codes": {
+           "29881": "Arthroscopy, knee, surgical; with meniscectomy",
+           "code2": "description2"
+         },
+         "assigned_codes": {
+           "diagnosis": "M17.12",
+           "procedure": "29881"
+         }
+       }
+    3. Do not include any <think> tags, markdown formatting, or explanatory text
+    4. Ensure all dictionaries have proper key-value pairs where:
+       - icd_codes: maps ICD-10 codes to their descriptions
+       - cpt_codes: maps CPT codes to their descriptions
+       - assigned_codes: maps code types to their selected codes
+    5. Return the JSON object directly, with no surrounding text or code blocks
+  expected_output: >
+    A pure JSON object with fields: icd_codes (Dict[str, str]), cpt_codes (Dict[str, str]), assigned_codes (Dict[str, str])
+  agent: generate_standard_codes_agent
+  context: 
+    - extract_clinical_terms_task
+
+estimate_treatment_costs_task:
+  description: >
+    Produce itemized cost estimate using mapped procedure codes, hospital pricing data, length of stay and consumables.
+    Refer pricing data for computation: {pricing_data}
+    
+    YOU MUST:
+    1. Return ONLY a valid JSON object with no surrounding text, comments, or explanations
+    2. Include all required fields: procedure_name, procedure_code, procedure_cost, estimated_length_of_stay, pre_post_care_cost, consumables, total_estimate
+    3. Ensure all numbers are proper float values (not strings)
+    4. Do not include any <think> tags, markdown formatting, or explanatory text
+    5. Format the output as pure JSON like:
+       {
+         "procedure_name": "Example",
+         "procedure_code": "12345",
+         "procedure_cost": 1000.00,
+         "estimated_length_of_stay": "2 days",
+         "pre_post_care_cost": 500.00,
+         "consumables": 100.00,
+         "total_estimate": 1600.00
+       }
+  expected_output: >
+    A pure JSON object with fields: procedure_name (str), procedure_code (str), procedure_cost (float), estimated_length_of_stay (str), pre_post_care_cost (float), consumables (float), total_estimate (float)
+  agent: estimate_treatment_costs_agent
+  context: 
+    - extract_clinical_terms_task
+    - medical_coding_task
+
+summarize_clinical_justification_task:
+  description: >
+    Create a clinical justification summary using all available information from previous tasks.
+
+    YOU MUST:
+    1. Return ONLY a valid JSON object with no surrounding text, comments, or explanations
+    2. Include all required fields in the exact structure:
+       {
+         "clinical_summary": "Detailed summary of the clinical case and necessity of procedure",
+         "guideline_references": [
+           "Clinical Guideline 1: Specific reference with criteria met",
+           "Clinical Guideline 2: Additional supporting guidelines"
+         ],
+         "supporting_evidence": "Detailed evidence from patient history, examination findings, and diagnostic results that support medical necessity"
+       }
+    3. Do not include any <think> tags, markdown formatting, or explanatory text
+    4. Ensure:
+       - clinical_summary is a comprehensive string explaining medical necessity
+       - guideline_references is an array of relevant clinical guidelines
+       - supporting_evidence is a string detailing specific evidence
+    5. Return the JSON object directly, with no surrounding text or code blocks
+  expected_output: >
+    A pure JSON object with fields: clinical_summary (str), guideline_references (List[str]), supporting_evidence (str)
+  agent: summarize_clinical_justification_agent
+  context: 
+    - process_patient_registration_task
+    - extract_clinical_terms_task
+    - medical_coding_task
+    - estimate_treatment_costs_task
+
+format_preauth_form_task:
+  description: >
+    Compile all validated data into a complete preauthorization package.
+
+    YOU MUST:
+    1. Return ONLY a valid JSON object with no surrounding text, comments, or explanations
+    2. Include all required nested objects in the exact structure:
+       {
+         "patient_info": {
+           "first_name": "string",
+           "last_name": "string",
+           "dob": "YYYY-MM-DD",
+           "gender": "string",
+           "contact": {
+             "phone": "string",
+             "email": "string"
+           },
+           "address": "string",
+           "ehr_id": "string",
+           "physician": {
+             "name": "string",
+             "department": "string",
+             "npi": "string"
+           },
+           "insurance": {
+             "insurer_name": "string",
+             "policy_number": "string",
+             "group_number": "string",
+             "valid_from": "YYYY-MM-DD",
+             "valid_to": "YYYY-MM-DD",
+             "network_affiliation": "string"
+           }
+         },
+         "clinical_notes": {
+           "symptoms": ["string"],
+           "diagnosis": "string",
+           "procedure": "string",
+           "risk_factors": ["string"]
+         },
+         "coding": {
+           "icd_codes": {"code": "description"},
+           "cpt_codes": {"code": "description"},
+           "assigned_codes": {"type": "code"}
+         },
+         "cost_estimate": {
+           "procedure_name": "string",
+           "procedure_code": "string",
+           "procedure_cost": 0.0,
+           "estimated_length_of_stay": "string",
+           "pre_post_care_cost": 0.0,
+           "consumables": 0.0,
+           "total_estimate": 0.0
+         },
+         "justification": {
+           "clinical_summary": "string",
+           "guideline_references": ["string"],
+           "supporting_evidence": "string"
+         },
+         "formatted_document": "Optional EDI 278 or FHIR bundle string"
+       }
+    3. Do not include any <think> tags, markdown formatting, or explanatory text
+    4. Ensure all nested objects have their complete required structure
+    5. Return the JSON object directly, with no surrounding text or code blocks
+  expected_output: >
+    A pure JSON object with nested fields following PreAuthFormModel schema, including patient_info, clinical_notes, coding, cost_estimate, justification, and optional formatted_document
+  agent: format_preauth_form_agent
+  context: 
+    - process_patient_registration_task
+    - extract_clinical_terms_task
+    - medical_coding_task
+    - estimate_treatment_costs_task
+    - summarize_clinical_justification_task
